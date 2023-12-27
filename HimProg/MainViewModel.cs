@@ -23,11 +23,130 @@ namespace HimProg
 {
     public  class MainViewModel : ViewModelBase
     {
+        private double TimeNow;
+
+        public MainViewModel(EventDelegate eventDelegate)
+        {
+            this.eventDelegate = eventDelegate;
+
+            
+
+            ReactionParam = new ReactionParam();
+
+
+            ObservableA = new ObservableValue { Value = 0 };
+            ObservableB = new ObservableValue { Value = 0 };
+            ObservableC = new ObservableValue { Value = 0 };
+
+            SeriesA = GaugeGenerator.BuildSolidGauge(
+                new GaugeItem(ObservableA, series =>
+                {
+                    series.Fill = new SolidColorPaint(s_blue, 2);
+                    series.Name = "A";
+                    series.DataLabelsPosition = PolarLabelsPosition.Start;
+                    series.DataLabelsFormatter =
+                        point => $"{point.Coordinate.PrimaryValue} моль/л ";
+                }));
+            SeriesB = GaugeGenerator.BuildSolidGauge(
+                new GaugeItem(ObservableB, series =>
+                {
+                    series.Fill = new SolidColorPaint(s_red, 2);
+                    series.Name = "B";
+                    series.DataLabelsPosition = PolarLabelsPosition.Start;
+                    series.DataLabelsFormatter =
+                        point => $"{point.Coordinate.PrimaryValue} моль/л ";
+                }));
+            SeriesC = GaugeGenerator.BuildSolidGauge(
+                new GaugeItem(ObservableC, series =>
+                {
+                    series.Fill = new SolidColorPaint(s_green, 2);
+                    series.Name = "C";
+                    series.DataLabelsPosition = PolarLabelsPosition.Start;
+                    series.DataLabelsFormatter =
+                        point => $"{point.Coordinate.PrimaryValue} моль/л ";
+                }));
+
+            observableValuesA = new ObservableCollection<ObservablePoint>();
+            observableValuesB = new ObservableCollection<ObservablePoint>();
+            observableValuesC = new ObservableCollection<ObservablePoint>();
+
+            SeriesChart = new ObservableCollection<ISeries>
+            {
+                new LineSeries<ObservablePoint>
+                {
+                    Values = observableValuesA,
+                    Stroke = new SolidColorPaint(s_blue,2),
+                    Fill = null,
+                    GeometrySize = 0,
+                    LineSmoothness = 4,
+                    GeometryStroke = new SolidColorPaint(s_blue,2)
+
+                },
+                new LineSeries<ObservablePoint>
+                {
+                    Values = observableValuesB,
+                    Stroke = new SolidColorPaint(s_red,2),
+                    Fill = null,
+                    GeometrySize = 0,
+                    LineSmoothness = 4
+                },
+                new LineSeries<ObservablePoint>
+                {
+                    Values = observableValuesC,
+                    Stroke = new SolidColorPaint(s_green,2),
+                    GeometrySize = 0,
+                    LineSmoothness = 4,
+                    Fill = null
+                }
+
+            };
+        }
+
+        
+        public ICommand RuntimeRecalculate
+        {
+            get
+            {
+                return new DelegateCommand(async () =>
+                {
+                    if (NoBusy)
+                        return;
+                    Stop.Execute(this);
+                    ReactionParam.Ca = 0;
+                    ReactionParam.Cb = 0;
+                    ReactionParam.Cc = 0;
+                    (var time, var y1, var y2, var y3) = GetDataCalc.GetData(ReactionParam);
+                    if (time.Length < 2 || y1.Length < 2 || y2.Length < 2 || y3.Length < 2)
+                        return;
+
+                    T = time.SkipWhile(t => t <= observableValuesA.Last().X).ToList();
+                    A = y1.ToList().Skip(2000 - T.Count).ToList();
+                    B = y2.ToList().Skip(2000 - T.Count).ToList();
+                    C = y3.ToList().Skip(2000 - T.Count).ToList();
+                    if (T.Count < 2 || A.Count < 2 || B.Count < 2 || C.Count < 2)
+                        return;
+                    MaxA = A.Max() + 0.00001;
+                    MaxB = B.Max() + 0.00001;
+                    MaxC = C.Max() + 0.00001;
+
+
+                    cancelToken = new CancellationTokenSource();
+                    cancel = cancelToken.Token;
+                    Busy = true;
+                    var qwe = await Task.Factory.StartNew(DrawChartAsync, cancelToken.Token);
+                    await qwe.ContinueWith(t => Busy = false);
+
+
+                });
+            }
+        }
 
         private static readonly SKColor s_blue = new(25, 118, 210);
         private static readonly SKColor s_red = new(229, 57, 53);
         private static readonly SKColor s_green = new(10, 167, 0);
-        public Reaction Reaction { get; set; }
+
+        private EventDelegate eventDelegate;
+        public ReactionParam ReactionParam { get; set; }
         public bool Pause { get; set; }
 
         public double MaxA { get; set; }
@@ -77,15 +196,20 @@ namespace HimProg
             }
         }
 
+        private void ContinueWith()
+        {
+
+        }
+
         private async void TryDrawChart()
         {
             if (Busy) 
                 return;
-            Reaction.Ca = 0;
-            Reaction.Cb = 0;
-            Reaction.Cc = 0;
+            ReactionParam.Ca = 0;
+            ReactionParam.Cb = 0;
+            ReactionParam.Cc = 0;
 
-            (var time, var y1, var y2, var y3) = Get.GetConcentrationsMathNet(Reaction);
+            (var time, var y1, var y2, var y3) = GetDataCalc.GetData(ReactionParam);
 
             UpdateChart();
             T = time.ToList();
@@ -93,9 +217,9 @@ namespace HimProg
             B = y2.ToList();
             C = y3.ToList();
 
-            MaxA = A.Max();
-            MaxB = B.Max();
-            MaxC = C.Max();
+            MaxA = A.Max()+0.0000001;
+            MaxB = B.Max() + 0.0000001;
+            MaxC = C.Max() + 0.0000001;
 
             if (IsChartAsync)
             {
@@ -155,24 +279,27 @@ namespace HimProg
         {
             for (int i = 0; i < T.Count; i++)
             {
-               
-                var waitTime = 1000 * T[i] * 60;
+
                 if (i != 0)
-                    waitTime -= T[i - 1] * 60 * 1000;
-                if (Speed < 0)
-                    waitTime = waitTime * Math.Abs(Speed);
-                if (Speed > 0)
-                    waitTime = waitTime * 1 / Speed;
-
-
-                await Task.Delay((int)waitTime,cancel);
-                while (Pause)
                 {
-                    await Task.Delay(50);
-                    if (cancel.IsCancellationRequested)
+                    var waitTime = 1000 * T[i] * 60;
+                    if (i != 0)
+                        waitTime -= T[i - 1] * 60 * 1000;
+                    if (Speed < 0)
+                        waitTime = waitTime * Math.Abs(Speed);
+                    if (Speed > 0)
+                        waitTime = waitTime * 1 / Speed;
+
+
+                    await Task.Delay((int)waitTime, cancel);
+                    while (Pause)
                     {
-                        Pause = false;
-                        return 0;
+                        await Task.Delay(50);
+                        if (cancel.IsCancellationRequested)
+                        {
+                            Pause = false;
+                            return 0;
+                        }
                     }
                 }
 
@@ -203,74 +330,7 @@ namespace HimProg
         public MainViewModel()
         {
 
-            Reaction = new Reaction();
-
-            ObservableA = new ObservableValue { Value = 0 };
-            ObservableB = new ObservableValue { Value = 0 };
-            ObservableC = new ObservableValue { Value = 0 };
-
-            SeriesA = GaugeGenerator.BuildSolidGauge(
-                new GaugeItem(ObservableA, series =>
-                {
-                    series.Fill = new SolidColorPaint(s_blue,2);
-                    series.Name = "A";
-                    series.DataLabelsPosition = PolarLabelsPosition.Start;
-                    series.DataLabelsFormatter =
-                        point => $"{point.Coordinate.PrimaryValue} моль/л ";
-                }));
-            SeriesB = GaugeGenerator.BuildSolidGauge(
-                new GaugeItem(ObservableB, series =>
-                {
-                    series.Fill = new SolidColorPaint(s_red,2);
-                    series.Name = "B";
-                    series.DataLabelsPosition = PolarLabelsPosition.Start;
-                    series.DataLabelsFormatter =
-                        point => $"{point.Coordinate.PrimaryValue} моль/л ";
-                }));
-            SeriesC = GaugeGenerator.BuildSolidGauge(
-                new GaugeItem(ObservableC, series =>
-                {
-                    series.Fill = new SolidColorPaint(s_green,2);
-                    series.Name = "C";
-                    series.DataLabelsPosition = PolarLabelsPosition.Start;
-                    series.DataLabelsFormatter =
-                        point => $"{point.Coordinate.PrimaryValue} моль/л ";
-                }));
-
-            observableValuesA = new ObservableCollection<ObservablePoint>();
-            observableValuesB = new ObservableCollection<ObservablePoint>();
-            observableValuesC = new ObservableCollection<ObservablePoint>();
-
-            SeriesChart = new ObservableCollection<ISeries>
-            {
-                new LineSeries<ObservablePoint>
-                {
-                    Values = observableValuesA,
-                    Stroke = new SolidColorPaint(s_blue,2),
-                    Fill = null,
-                    GeometrySize = 0,
-                    LineSmoothness = 4,
-                    GeometryStroke = new SolidColorPaint(s_blue,2)
-
-                },
-                new LineSeries<ObservablePoint>
-                {
-                    Values = observableValuesB,
-                    Stroke = new SolidColorPaint(s_red,2),
-                    Fill = null,
-                    GeometrySize = 0,
-                    LineSmoothness = 4
-                },
-                new LineSeries<ObservablePoint>
-                {
-                    Values = observableValuesC,
-                    Stroke = new SolidColorPaint(s_green,2),
-                    GeometrySize = 0,
-                    LineSmoothness = 4,
-                    Fill = null
-                }
-
-            };
+           
         }
 
         public Axis[] XAxes { get; set; } =
@@ -283,7 +343,6 @@ namespace HimProg
             }
         };
 
-        public int Count { get; set; } = 0;
         public Axis[] YAxes { get; set; } =
         {
             new Axis
@@ -300,7 +359,6 @@ namespace HimProg
         }
         private void addB(double value, double time)
         {
-            Count++;
             observableValuesB.Add(new(time,value));
            ObservableB.Value = value;
         }

@@ -25,14 +25,14 @@
             <Viewbox>
                 <StackPanel Margin="5" Width="250" HorizontalAlignment="Stretch" Orientation="Vertical">
                     <TextBox
-
+                        
                         materialDesign:TextFieldAssist.SuffixText="л."
                         materialDesign:HintAssist.Hint="Объем реактора"
                         Margin="3"
                         Style="{StaticResource MaterialDesignOutlinedTextBox}"
                         VerticalContentAlignment="Center"
-                        IsReadOnly="False"
-                        Text="{Binding Reaction.V}" />
+                        IsReadOnly="{Binding Busy}"
+                        Text="{Binding ReactionParam.V}" />
                     <TextBox
 
                         materialDesign:TextFieldAssist.SuffixText="л^2/(моль^2*мин)"
@@ -44,8 +44,8 @@
                         Margin="3,3,3,15"
                         Style="{StaticResource MaterialDesignOutlinedTextBox}"
                         VerticalContentAlignment="Center"
-                        IsReadOnly="False"
-                        Text="{Binding Reaction.k01}" />
+                        IsReadOnly="{Binding Busy}"
+                        Text="{Binding ReactionParam.k01}" />
                     <TextBox
                         Margin="3,3,3,15"
                         materialDesign:TextFieldAssist.SuffixText="Дж/моль"
@@ -54,8 +54,8 @@
 
                         Style="{StaticResource MaterialDesignOutlinedTextBox}"
                         VerticalContentAlignment="Center"
-                        IsReadOnly="False"
-                        Text="{Binding Reaction.E1}" />
+                        IsReadOnly="{Binding Busy}"
+                        Text="{Binding ReactionParam.E1}" />
                     <TextBox
 
                         materialDesign:TextFieldAssist.SuffixText="л^2/(моль^2*мин)"
@@ -67,8 +67,8 @@
                         Margin="3,3,3,15"
                         Style="{StaticResource MaterialDesignOutlinedTextBox}"
                         VerticalContentAlignment="Center"
-                        IsReadOnly="False"
-                        Text="{Binding Reaction.k02}" />
+                        IsReadOnly="{Binding Busy}"
+                        Text="{Binding ReactionParam.k02}" />
                     <TextBox
                         Margin="3,3,3,15"
                         materialDesign:TextFieldAssist.SuffixText="Дж/моль"
@@ -78,16 +78,19 @@
                         Style="{StaticResource MaterialDesignOutlinedTextBox}"
                         VerticalContentAlignment="Center"
                         IsReadOnly="False"
-                        Text="{Binding Reaction.E2}" />
+                        Text="{Binding ReactionParam.E2}" />
                     <TextBox
+                        
+                        TextChanged="TextBoxBase_OnTextChanged"
                         materialDesign:TextFieldAssist.SuffixText="л/мин"
                         materialDesign:HintAssist.Hint="Расход потока "
                         Margin="3"
                         Style="{StaticResource MaterialDesignOutlinedTextBox}"
                         VerticalContentAlignment="Center"
                         IsReadOnly="False"
-                        Text="{Binding Reaction.Q}" />
+                        Text="{Binding ReactionParam.Q}" />
                     <TextBox
+                        TextChanged="TextBoxBase_OnTextChanged"
                         materialDesign:TextFieldAssist.SuffixText="моль/л"
                         Margin="3,3,3,15"
                         materialDesign:HintAssist.Hint="C Ain"
@@ -96,8 +99,9 @@
                         Style="{StaticResource MaterialDesignOutlinedTextBox}"
                         VerticalContentAlignment="Center"
                         IsReadOnly="False"
-                        Text="{Binding Reaction.Cain}" />
+                        Text="{Binding ReactionParam.Cain}" />
                     <TextBox
+                        TextChanged="TextBoxBase_OnTextChanged"
                         materialDesign:TextFieldAssist.SuffixText="моль/л"
                         Margin="3,3,3,15"
                         materialDesign:HintAssist.Hint="C Cin"
@@ -106,8 +110,9 @@
                         Style="{StaticResource MaterialDesignOutlinedTextBox}"
                         VerticalContentAlignment="Center"
                         IsReadOnly="False"
-                        Text="{Binding Reaction.Ccin}" />
+                        Text="{Binding ReactionParam.Ccin}" />
                     <TextBox
+                        TextChanged="TextBoxBase_OnTextChanged"
                         materialDesign:TextFieldAssist.SuffixText="°C"
                         Margin="3,3,3,15"
                         materialDesign:HintAssist.Hint="T"
@@ -116,7 +121,8 @@
                         Style="{StaticResource MaterialDesignOutlinedTextBox}"
                         VerticalContentAlignment="Center"
                         IsReadOnly="False"
-                        Text="{Binding Reaction.T}" />
+                        Text="{Binding ReactionParam.T}" />
+                    <Button Margin="10" Command="{Binding RuntimeRecalculate}">Пересчитать в рантайме</Button>
                 </StackPanel>
             </Viewbox>
 
@@ -167,16 +173,16 @@
                                 FontSize="20"
                                 Text="2A + C -> B,  B -> 2A + C." />
                             <StackPanel Grid.Column="1">
-                            <Button 
+                                <Button
                                     Command="{Binding Play}"
                                     Background="{DynamicResource MaterialDesignTextFieldBoxBackground}"
                                     Margin="20"
                                     IsEnabled="{Binding NoBusy}"
                                     Style="{StaticResource  MaterialDesignIconButton}">
-                                <materialDesign:PackIcon
-                                    Kind="Play" />
-                            </Button>
-                                <CheckBox IsChecked="{Binding IsChartAsync}" Content="Real time"></CheckBox>
+                                    <materialDesign:PackIcon
+                                        Kind="Play" />
+                                </Button>
+                                <CheckBox IsChecked="{Binding IsChartAsync}" Content="Real time" />
                             </StackPanel>
 
                         </Grid>
@@ -187,8 +193,8 @@
                             Header="Скорость">
                             <Slider
                                 materialDesign:SliderAssist.HideActiveTrack="True"
-                                Maximum="50"
-                                Minimum="-50"
+                                Maximum="100"
+                                Minimum="-100"
                                 Value="{Binding Speed}"
                                 Style="{StaticResource MaterialDesignDiscreteSlider}"
                                 TickFrequency="1"
@@ -220,8 +226,8 @@
                     Width="55"
                     materialDesign:ToggleButtonAssist.OnContent="{materialDesign:PackIcon Kind=Play}"
                     Content="{materialDesign:PackIcon Kind=Pause}"
-                    Style="{StaticResource MaterialDesignActionToggleButton}"/>
-              
+                    Style="{StaticResource MaterialDesignActionToggleButton}" />
+
 
                 <Button
                     Command="{Binding Stop}"
