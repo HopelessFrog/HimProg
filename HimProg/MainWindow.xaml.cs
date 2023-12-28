@@ -17,20 +17,17 @@ namespace HimProg
     public partial class MainWindow : Window 
     {
 
-        private EventDelegate eventDelegate;
+       
         public MainWindow()
         {
             InitializeComponent();
-            eventDelegate = new EventDelegate();
-            this.DataContext = new MainViewModel(eventDelegate);
+           
+           
         }
 
         
 
-        private void TextBoxBase_OnTextChanged(object sender, TextChangedEventArgs e)
-        {
-            eventDelegate?.InvokeThis();
-        }
+       
 
 
        

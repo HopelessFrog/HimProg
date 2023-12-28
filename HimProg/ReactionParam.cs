@@ -1,6 +1,4 @@
 ﻿using DevExpress.Mvvm;
-using MathNet.Numerics.LinearAlgebra;
-using Ode = MathNet.Numerics.OdeSolvers;
 
 namespace HimProg;
 
@@ -46,49 +44,5 @@ public class ReactionParam :ViewModelBase
     public double GetMatBalanceComponentC(double t, double Cc)
     {
         return (Q * (Ccin - Cc) + V * (-r1 + r2)) / V;
-    }
-}
-
-public static class GetDataCalc
-{
-    public static (double[], double[], double[], double[]) GetData(ReactionParam reactionParam)
-    {
-        var count = 2000;
-
-        double[] y0arr = { reactionParam.Ca, reactionParam.Cb, reactionParam.Cc };
-        var y0 = Vector<double>.Build.DenseOfArray(y0arr);
-        Func<double, Vector<double>, Vector<double>> odeSystem = (t, Z) =>
-        {
-            var A = Z.ToArray();
-            var Ca = A[0];
-            var Cb = A[1];
-            var Cc = A[2];
-            reactionParam.Ca = Ca;
-            reactionParam.Cb = Cb;
-            reactionParam.Cc = Cc;
-
-
-            return Vector<double>.Build.Dense(new[]
-            {
-                reactionParam.GetMatBalanceComponentA(t, reactionParam.Ca),
-                reactionParam.GetMatBalanceComponentB(t, reactionParam.Cb),
-                reactionParam.GetMatBalanceComponentC(t, reactionParam.Cc)
-            });
-        };
-        var res = Ode.RungeKutta.FourthOrder(y0, 0, reactionParam.theta, count, odeSystem);
-        List<double> t = new();
-        for (double i = 0; i < reactionParam.theta; i += reactionParam.theta / count) t.Add(i);
-        List<double> y1 = new();
-        List<double> y2 = new();
-        List<double> y3 = new();
-        for (var i = 0; i < count; i++)
-        {
-            var temp = res[i].ToList();
-            y1.Add(temp[0]);
-            y2.Add(temp[1]);
-            y3.Add(temp[2]);
-        }
-
-        return (t.ToArray(), y1.ToArray(), y2.ToArray(), y3.ToArray());
     }
 }

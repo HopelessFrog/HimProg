@@ -5,6 +5,7 @@ using System.Drawing.Text;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows;
 using System.Windows.Input;
 using DevExpress.Mvvm;
 using LiveChartsCore;
@@ -25,11 +26,12 @@ namespace HimProg
     {
         private double TimeNow;
 
-        public MainViewModel(EventDelegate eventDelegate)
+        public MainViewModel()
         {
-            this.eventDelegate = eventDelegate;
+           
 
-            
+            ErrorRequest = new ErrorRequest();
+            ErrorResult = new ErrorResult();
 
             ReactionParam = new ReactionParam();
 
@@ -115,7 +117,7 @@ namespace HimProg
                     ReactionParam.Ca = 0;
                     ReactionParam.Cb = 0;
                     ReactionParam.Cc = 0;
-                    (var time, var y1, var y2, var y3) = GetDataCalc.GetData(ReactionParam);
+                    (var time, var y1, var y2, var y3) = DataCalc.CalcData(ReactionParam,2000);
                     if (time.Length < 2 || y1.Length < 2 || y2.Length < 2 || y3.Length < 2)
                         return;
 
@@ -145,10 +147,11 @@ namespace HimProg
         private static readonly SKColor s_red = new(229, 57, 53);
         private static readonly SKColor s_green = new(10, 167, 0);
 
-        private EventDelegate eventDelegate;
+        public bool WithError { get; set; } = true;
         public ReactionParam ReactionParam { get; set; }
         public bool Pause { get; set; }
-
+        public ErrorRequest ErrorRequest { get; set; }
+        public ErrorResult ErrorResult { get; set; }
         public double MaxA { get; set; }
         public double MaxB { get; set; }
         public double MaxC { get; set; }
@@ -196,10 +199,7 @@ namespace HimProg
             }
         }
 
-        private void ContinueWith()
-        {
-
-        }
+        
 
         private async void TryDrawChart()
         {
@@ -208,14 +208,35 @@ namespace HimProg
             ReactionParam.Ca = 0;
             ReactionParam.Cb = 0;
             ReactionParam.Cc = 0;
+            if (WithError)
+            {
+                if (ErrorRequest.InitialStep == 0 || ErrorRequest.MaxError == 0 )
+                {
+                    MessageBox.Show("Неправильный параметры погрешности");
+                    return;
 
-            (var time, var y1, var y2, var y3) = GetDataCalc.GetData(ReactionParam);
+                }
+
+                (var time, var y1, var y2, var y3) = DataCalc.CalcData(ReactionParam, ErrorRequest,ErrorResult);
+                T = time.ToList();
+                A = y1.ToList();
+                B = y2.ToList();
+                C = y3.ToList();
+                MessageBox.Show($"Шаг = {ErrorResult.Step}\n Максимальная погрешность = {ErrorResult.Error/B.Max() * 100} %");
+            }
+            else
+            {
+                (var time, var y1, var y2, var y3) = DataCalc.CalcData(ReactionParam,2000);
+                T = time.ToList();
+                A = y1.ToList();
+                B = y2.ToList();
+                C = y3.ToList();
+
+            }
+
 
             UpdateChart();
-            T = time.ToList();
-            A = y1.ToList();
-            B = y2.ToList();
-            C = y3.ToList();
+            
 
             MaxA = A.Max()+0.0000001;
             MaxB = B.Max() + 0.0000001;
@@ -327,11 +348,7 @@ namespace HimProg
 
            
         }
-        public MainViewModel()
-        {
-
-           
-        }
+       
 
         public Axis[] XAxes { get; set; } =
         {
